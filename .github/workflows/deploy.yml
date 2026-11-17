@@ -1,4 +1,4 @@
-name: deploy
+name: Deploy · Lambda de notificação, fila, tabela e segredo SMTP
 
 # Deploy deste serviço (ADR-018): no merge na main e chamado pelo deploy-all do fiapx-infra.
 # Credenciais da AWS Academy em Secrets (ADR-019). Com o ambiente destruído, falha ao ler o SSM.
@@ -20,24 +20,29 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Chamado pelo deploy-all, aparece como "2 · Notificação (Lambda, fila e tabela) / Implantar".
   deploy:
+    name: Implantar
     runs-on: ubuntu-latest
     environment: prod
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - name: Baixar o fiapx-notification
+        uses: actions/checkout@v4
         with: { repository: hackathon-fiap-soat/fiapx-notification }
-      - uses: actions/setup-node@v4
+      - name: Instalar o Node.js (versão do .nvmrc)
+        uses: actions/setup-node@v4
         with: { node-version-file: .nvmrc }
-      - name: Pacote da Lambda
+      - name: Gerar o pacote da Lambda (zip)
         run: npm run build
-      - id: aws
+      - name: Autenticar na AWS Academy e garantir o bucket do state
+        id: aws
         uses: hackathon-fiap-soat/fiapx-infra/.github/actions/aws-lab@main
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-      - name: Ambiente no ar?
+      - name: Conferir se o ambiente prod está no ar (parâmetros do SSM)
         run: |
           for p in sns/alerts_topic_arn vpc/private_subnet_ids vpc/lambda_security_group_id sqs/saga-replies/url web/url; do
             aws ssm get-parameter --name "/fiapx/prod/$p" >/dev/null 2>&1 || {
@@ -45,7 +50,7 @@ jobs:
               exit 1
             }
           done
-      - name: Credenciais SMTP configuradas?
+      - name: Avisar se faltam os Secrets SMTP
         env:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
@@ -54,9 +59,10 @@ jobs:
           for s in SMTP_USER SMTP_PASSWORD SMTP_FROM; do
             [ -n "${!s}" ] || echo "::warning::Secret $s vazio: o deploy segue, mas os e-mails vão falhar até ele ser configurado."
           done
-      - uses: hashicorp/setup-terraform@v3
+      - name: Instalar o Terraform
+        uses: hashicorp/setup-terraform@v3
         with: { terraform_version: 1.15.8, terraform_wrapper: false }
-      - name: Terraform apply (fila, tabela, segredo SMTP e Lambda)
+      - name: Aplicar a fila, a tabela, o segredo SMTP e a Lambda (Terraform)
         working-directory: infra
         env:
           TF_VAR_smtp_user: ${{ secrets.SMTP_USER }}
@@ -65,7 +71,7 @@ jobs:
         run: |
           terraform init -input=false -backend-config="bucket=${{ steps.aws.outputs.state-bucket }}"
           terraform apply -auto-approve -input=false -lock-timeout=10m
-      - name: Lambda pronta e ligada à fila?
+      - name: Aguardar a Lambda e conferir o gatilho da fila (event source mapping)
         run: |
           set -euo pipefail
           nome=$(terraform -chdir=infra output -raw lambda_name)
@@ -73,7 +79,7 @@ jobs:
           estado=$(aws lambda list-event-source-mappings --function-name "$nome" --query 'EventSourceMappings[0].State' --output text)
           echo "Event source mapping: $estado"
           case "$estado" in Enabled|Enabling|Updating|Creating) ;; *) echo "::error::Event source mapping em estado $estado"; exit 1 ;; esac
-      - name: Resumo
+      - name: Escrever o resumo do deploy
         run: |
           {
             echo "### fiapx-notification implantado"
