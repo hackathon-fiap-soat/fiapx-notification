@@ -78,9 +78,8 @@ resource "aws_dynamodb_table" "notifications" {
   point_in_time_recovery {
     enabled = true
   }
-  server_side_encryption {
-    enabled = true
-  }
+  # Sem bloco server_side_encryption: a tabela fica criptografada com a chave da própria AWS (padrão). Pedir
+  # a chave gerenciada aws/dynamodb falha na AWS Academy ("KMS key does not exist"), ADR-019.
 }
 
 resource "aws_ssm_parameter" "this" {
