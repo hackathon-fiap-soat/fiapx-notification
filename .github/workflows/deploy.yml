@@ -68,6 +68,9 @@ jobs:
           TF_VAR_smtp_user: ${{ secrets.SMTP_USER }}
           TF_VAR_smtp_password: ${{ secrets.SMTP_PASSWORD }}
           TF_VAR_smtp_from: ${{ secrets.SMTP_FROM }}
+          # New Relic (Etapa 9): vazios = Lambda sem instrumentação.
+          TF_VAR_newrelic_license_key: ${{ secrets.NEW_RELIC_LICENSE_KEY }}
+          TF_VAR_newrelic_account_id: ${{ secrets.NEW_RELIC_ACCOUNT_ID }}
         run: |
           terraform init -input=false -backend-config="bucket=${{ steps.aws.outputs.state-bucket }}"
           terraform apply -auto-approve -input=false -lock-timeout=10m
