@@ -17,7 +17,7 @@ Já existe (antes da Lambda, para os outros serviços subirem na AWS):
 - fila `fiapx-<env>-notification-commands` (Standard, visibility 60 s, retenção 4 dias) com DLQ após 3
   recebimentos e alarme da DLQ no tópico SNS do `fiapx-infra`;
 - tabela `fiapx-<env>-notifications` (PK `email`, SK `message_id`, LSI `email-created_at-index`, TTL
-  `expires_at`, PITR);
+  `expires_at`, PITR, criptografia com a chave da AWS);
 - parâmetros SSM `/fiapx/<env>/sqs/notification-commands/url`, `/arn`, `/sqs/notification-commands-dlq/url` e
   `/dynamodb/notifications/table_name`.
 
