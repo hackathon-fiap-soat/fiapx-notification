@@ -25,7 +25,7 @@ só leitura, pode).
   done
   ```
 
-- Este repositório também precisa dos Secrets `SMTP_USER`, `SMTP_PASSWORD` e `SMTP_FROM` (Brevo). Chamado pelo
+- Este repositório também precisa dos Secrets `SMTP_USER`, `SMTP_PASSWORD` e `SMTP_FROM` (OCI Email Delivery, ADR-020). Chamado pelo
   `deploy-all` (`secrets: inherit`), o `deploy.yml` lê os Secrets do `fiapx-infra`: configure-os lá também (ou na
   organização). Sem eles o deploy segue com aviso e os e-mails falham (`last_error` no DynamoDB).
 - Conferir a Lambda: `aws logs tail /aws/lambda/fiapx-prod-notification --since 10m` (uma linha JSON por

@@ -21,7 +21,7 @@ function idDoProvedor(info) {
 
 /**
  * Envio por SMTP com Nodemailer (ADR-019), o mesmo adaptador nos dois ambientes: Mailpit no local (sem
- * autenticação nem TLS) e o provedor externo na AWS (Brevo, porta 587 com STARTTLS obrigatório quando há
+ * autenticação nem TLS) e o provedor externo na AWS (OCI Email Delivery, ADR-020, porta 587 com STARTTLS obrigatório quando há
  * usuário). Porta 465 usa TLS direto.
  *
  * @param {() => Promise<{host: string, port: number, user: string, password: string, from: string}>} smtpConfig
