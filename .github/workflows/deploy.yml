@@ -1,0 +1,43 @@
+name: deploy
+
+# Deploy deste serviço (ADR-018): no merge na main e chamado pelo deploy-all do fiapx-infra.
+# Credenciais da AWS Academy em Secrets (ADR-019). Com o ambiente destruído, falha ao ler o SSM.
+on:
+  push:
+    branches: [main]
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-fiapx-notification
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: prod
+    timeout-minutes: 20
+    defaults:
+      run: { working-directory: infra }
+    steps:
+      - uses: actions/checkout@v4
+        with: { repository: hackathon-fiap-soat/fiapx-notification }
+      - id: aws
+        uses: hackathon-fiap-soat/fiapx-infra/.github/actions/aws-lab@main
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+      - name: Ambiente no ar?
+        run: |
+          aws ssm get-parameter --name /fiapx/prod/sns/alerts_topic_arn >/dev/null 2>&1 || {
+            echo "::error::Ambiente prod fora do ar (SSM /fiapx/prod sem a infraestrutura). Rode o deploy-all no fiapx-infra."
+            exit 1
+          }
+      - uses: hashicorp/setup-terraform@v3
+        with: { terraform_version: 1.15.8, terraform_wrapper: false }
+      - run: terraform init -input=false -backend-config="bucket=${{ steps.aws.outputs.state-bucket }}"
+      - run: terraform apply -auto-approve -input=false -lock-timeout=10m
