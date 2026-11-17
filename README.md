@@ -1,6 +1,6 @@
 # fiapx-notification
 
-Notificação do FIAP X: fila SQS → Lambda que envia e-mail por SMTP (provedor externo, padrão Brevo), registra cada envio no DynamoDB (chave = e-mail) e responde à SAGA.
+Notificação do FIAP X: fila SQS → Lambda que envia e-mail por SMTP (provedor externo: OCI Email Delivery, ADR-020), registra cada envio no DynamoDB (chave = e-mail) e responde à SAGA.
 
 > Parte do **Hackathon FIAP X — Processador de Vídeos** (PÓS TECH SOAT, Fase 5).
 > Etapa 6 implementada (código, testes e Terraform); deploy pelo GitHub Actions em `deploy.yml`. A
@@ -24,7 +24,7 @@ flowchart LR
   P["video-api (outbox) e fiapx-auth"] -->|SendNotification| Q[["SQS notification-commands"]]
   Q -->|"lote de 10"| L["Lambda notification"]
   L <-->|"PutItem condicional, UpdateItem"| D[("DynamoDB notifications<br/>PK email, SK message_id")]
-  L -->|"SMTP (Nodemailer)"| S["Brevo / Mailpit"]
+  L -->|"SMTP (Nodemailer)"| S["OCI Email Delivery / Mailpit"]
   L -->|"NotificationSent ou NotificationFailed<br/>(só com saga_id)"| R[["SQS saga-replies.fifo"]]
   Q -. "3 falhas" .-> DLQ[["notification-commands-dlq"]]
 ```
@@ -140,7 +140,7 @@ npm run build               # dist/fiapx-notification.zip
 | `MAX_ATTEMPTS` | Tentativas até a DLQ (igual ao `maxReceiveCount`) | `3` |
 | `NOTIFICATION_QUEUE_URL` | Fila lida pelo `npm run dev` | SSM `sqs/notification-commands/url` |
 
-Sem usuário no segredo (Mailpit), o envio é sem autenticação. Com usuário (Brevo), a porta 587 exige
+Sem usuário no segredo (Mailpit), o envio é sem autenticação. Com usuário (OCI Email Delivery), a porta 587 exige
 STARTTLS; a 465 usa TLS direto. O remetente aparece como "FIAP X".
 
 ## Infraestrutura (`infra/`)
@@ -162,7 +162,7 @@ STARTTLS; a 465 usa TLS direto. O remetente aparece como "FIAP X".
   `smtp_from`. Sem `smtp_from`, o apply não quebra: o remetente vira
   `configure-o-secret-SMTP_FROM@fiapx.invalid` e os envios falham com o erro em `last_error`.
 - Publica no SSM: `sqs/notification-commands/url`, `/arn`, `sqs/notification-commands-dlq/url`,
-  `dynamodb/notifications/table_name`, `notification/smtp_host` (`smtp-relay.brevo.com`),
+  `dynamodb/notifications/table_name`, `notification/smtp_host` (`smtp.email.sa-saopaulo-1.oci.oraclecloud.com`),
   `notification/smtp_port` (`587`) e `notification/smtp_secret_arn`.
 - Lê do SSM: `sns/alerts_topic_arn`, `vpc/private_subnet_ids`, `vpc/lambda_security_group_id`,
   `sqs/saga-replies/url` e `web/url`.
@@ -174,7 +174,7 @@ STARTTLS; a 465 usa TLS direto. O remetente aparece como "FIAP X".
   bucket `fiapx-tfstate-<account_id>`) e confere a Lambda e o event source mapping. Com o ambiente
   destruído, falha ao ler o SSM.
 - Secrets: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` e `AWS_SESSION_TOKEN` (sessão da AWS Academy) e
-  `SMTP_USER`, `SMTP_PASSWORD` e `SMTP_FROM` (conta do time no Brevo), passados ao Terraform como
+  `SMTP_USER`, `SMTP_PASSWORD` e `SMTP_FROM` (credencial SMTP gerada no OCI e Approved Sender num domínio do time), passados ao Terraform como
   `TF_VAR_smtp_*`. **Chamado pelo `deploy-all` (`secrets: inherit`), o workflow recebe os Secrets do
   `fiapx-infra`**: os três `SMTP_*` precisam estar lá também (ou na organização); sem eles o deploy avisa e
   grava credenciais vazias.

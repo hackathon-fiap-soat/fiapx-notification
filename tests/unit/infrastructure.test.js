@@ -55,10 +55,10 @@ describe('createConfig', () => {
     const secrets = clienteFalso(() => ({ SecretString: '{"user":"u","password":"p","from":"time@example.com"}' }));
     const cfg = createConfig({
       FIAPX_ENV: 'prod', NOTIFICATION_TABLE_NAME: 't', SAGA_REPLIES_QUEUE_URL: 'q', WEB_URL: 'https://x',
-      SMTP_HOST: 'smtp-relay.brevo.com', SMTP_PORT: '587', SMTP_SECRET_ARN: 'arn:prod',
+      SMTP_HOST: 'smtp.email.sa-saopaulo-1.oci.oraclecloud.com', SMTP_PORT: '587', SMTP_SECRET_ARN: 'arn:prod',
     }, { ssm, secrets });
     expect(await cfg.tableName()).toBe('t');
-    expect(await cfg.smtp()).toEqual({ host: 'smtp-relay.brevo.com', port: 587, user: 'u', password: 'p', from: 'time@example.com' });
+    expect(await cfg.smtp()).toEqual({ host: 'smtp.email.sa-saopaulo-1.oci.oraclecloud.com', port: 587, user: 'u', password: 'p', from: 'time@example.com' });
   });
 
   it('não guarda em cache uma leitura que falhou', async () => {
@@ -106,9 +106,9 @@ describe('smtpEmailSender', () => {
     });
   });
 
-  it('Brevo: autenticado, porta 587 com STARTTLS obrigatório', async () => {
+  it('OCI Email Delivery: autenticado, porta 587 com STARTTLS obrigatório', async () => {
     const t = transporte({});
-    const s = smtpEmailSender(async () => ({ host: 'smtp-relay.brevo.com', port: 587, user: 'u', password: 'p', from: 'FIAP X <time@example.com>' }), t.create);
+    const s = smtpEmailSender(async () => ({ host: 'smtp.email.sa-saopaulo-1.oci.oraclecloud.com', port: 587, user: 'u', password: 'p', from: 'FIAP X <time@example.com>' }), t.create);
     expect(await s.send(mensagem)).toEqual({ providerMessageId: null });
     expect(t.opcoes[0]).toMatchObject({ secure: false, requireTLS: true, auth: { user: 'u', pass: 'p' } });
     expect(t.enviados[0].from).toBe('FIAP X <time@example.com>');

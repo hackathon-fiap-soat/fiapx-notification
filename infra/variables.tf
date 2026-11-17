@@ -28,12 +28,12 @@ variable "max_concurrency" {
   default     = 5
 }
 
-# Provedor SMTP (ADR-019). Host e porta são públicos; usuário, senha e remetente chegam dos GitHub Secrets
+# Provedor SMTP (ADR-019 e ADR-020: OCI Email Delivery, região São Paulo). Host e porta são públicos; usuário, senha e remetente chegam dos GitHub Secrets
 # SMTP_USER, SMTP_PASSWORD e SMTP_FROM como TF_VAR_* no deploy.yml e vão para o Secrets Manager.
 variable "smtp_host" {
   description = "Host do provedor SMTP."
   type        = string
-  default     = "smtp-relay.brevo.com"
+  default     = "smtp.email.sa-saopaulo-1.oci.oraclecloud.com"
 }
 
 variable "smtp_port" {
