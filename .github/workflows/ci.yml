@@ -2,7 +2,7 @@ name: CI · lint, testes, pacote da Lambda e Terraform do notification
 
 # Checks de todo PR: lint, testes (unitários, contrato e integração com o LocalStack e o Mailpit do
 # fiapx-infra/local, cobertura ≥ 80%), build do pacote e validação do Terraform.
-# O deploy está em deploy.yml (ADR-018, credenciais da AWS Academy, ADR-019). O SonarCloud entra na Etapa 8.
+# O deploy está em deploy.yml (ADR-018, credenciais da AWS Academy, ADR-019). O SonarCloud roda depois dos testes, com a cobertura do Jest (Etapa 8).
 on:
   pull_request:
   push:
@@ -30,6 +30,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: fiapx-notification
+          # Histórico completo: o SonarCloud usa o blame para separar código novo do antigo.
+          fetch-depth: 0
       - name: Baixar o fiapx-docs (contratos)
         uses: actions/checkout@v4
         with:
@@ -55,6 +57,13 @@ jobs:
         run: docker compose up -d --wait
       - name: Rodar os testes com cobertura (unitários, contrato e integração)
         run: npm run test:coverage
+      - name: Analisar no SonarCloud e esperar o Quality Gate
+        uses: SonarSource/sonarqube-scan-action@v8.4.1
+        with:
+          projectBaseDir: fiapx-notification
+          args: -Dsonar.qualitygate.wait=true
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       - name: Mostrar os logs do ambiente local (só em falha)
         if: failure()
         working-directory: fiapx-infra/local
