@@ -35,7 +35,8 @@ resource "aws_lambda_function" "notification" {
   role             = data.aws_iam_role.lab.arn
   runtime          = "nodejs24.x"
   architectures    = ["arm64"]
-  handler          = "src/handlers/sqs-handler.handler"
+  handler          = local.newrelic ? "newrelic-lambda-wrapper.handler" : "src/handlers/sqs-handler.handler"
+  layers           = local.newrelic ? [local.newrelic_layer] : []
   filename         = var.lambda_zip
   source_code_hash = filebase64sha256(var.lambda_zip)
   memory_size      = 256
@@ -43,7 +44,7 @@ resource "aws_lambda_function" "notification" {
   timeout = 30
 
   environment {
-    variables = {
+    variables = merge({
       FIAPX_ENV               = var.env
       NOTIFICATION_TABLE_NAME = aws_dynamodb_table.notifications.name
       SAGA_REPLIES_QUEUE_URL  = data.aws_ssm_parameter.saga_replies_url.value
@@ -52,7 +53,9 @@ resource "aws_lambda_function" "notification" {
       SMTP_PORT               = tostring(var.smtp_port)
       SMTP_SECRET_ARN         = aws_secretsmanager_secret.smtp.arn
       MAX_ATTEMPTS            = "3" # igual ao maxReceiveCount da fila
-    }
+      }, local.newrelic_env,
+      local.newrelic ? { NEW_RELIC_LAMBDA_HANDLER = "src/handlers/sqs-handler.handler" } : {},
+    )
   }
 
   vpc_config {
@@ -66,7 +69,7 @@ resource "aws_lambda_function" "notification" {
   }
 
   # O segredo precisa ter versão antes da primeira invocação.
-  depends_on = [aws_secretsmanager_secret_version.smtp]
+  depends_on = [aws_secretsmanager_secret_version.smtp, aws_secretsmanager_secret_version.newrelic]
 }
 
 resource "aws_lambda_event_source_mapping" "commands" {

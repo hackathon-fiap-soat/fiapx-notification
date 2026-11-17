@@ -178,6 +178,9 @@ STARTTLS; a 465 usa TLS direto. O remetente aparece como "FIAP X".
   `TF_VAR_smtp_*`. **Chamado pelo `deploy-all` (`secrets: inherit`), o workflow recebe os Secrets do
   `fiapx-infra`**: os três `SMTP_*` precisam estar lá também (ou na organização); sem eles o deploy avisa e
   grava credenciais vazias.
+- New Relic (Etapa 9): com os Secrets `NEW_RELIC_LICENSE_KEY` e `NEW_RELIC_ACCOUNT_ID`, o `infra/newrelic.tf` põe a layer
+  da extensão na Lambda (handler `newrelic-lambda-wrapper.handler`, original em `NEW_RELIC_LAMBDA_HANDLER`) e grava a
+  license key no segredo `fiapx/<env>/notification/newrelic`. Sem os Secrets, nada muda.
 - `destroy.yml`: chamado pelo `destroy-all` (cria um zip vazio, porque a variável `lambda_zip` exige o arquivo).
 - `ci.yml`: lint, testes com cobertura (com `fiapx-docs` e `fiapx-infra` lado a lado e o compose local),
   build do zip e `terraform fmt -check`/`validate` em todo PR. Análise no **SonarCloud** ([organização `hackathon-fiap-soat`](https://sonarcloud.io/organizations/hackathon-fiap-soat/projects)) depois dos testes, com a cobertura e o Quality Gate como check (`sonar-project.properties`, Secret `SONAR_TOKEN`).
