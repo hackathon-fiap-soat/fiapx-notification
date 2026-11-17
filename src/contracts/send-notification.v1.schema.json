@@ -1,0 +1,193 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hackathon-fiap-soat/fiapx-docs/contracts/send-notification.v1.schema.json",
+  "title": "SendNotification v1",
+  "description": "Comando para enviar um e-mail ao usuário. Emitido pelo video-api (templates de vídeo, dentro da saga) e pelo fiapx-auth (templates de senha, fora da saga: saga_id e video_id nulos e sem resposta na saga-replies.fifo).",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "SendNotification"
+        },
+        "version": {
+          "const": 1
+        },
+        "payload": {
+          "type": "object",
+          "description": "Payload de SendNotification.",
+          "required": [
+            "template",
+            "recipient_email",
+            "recipient_name"
+          ],
+          "properties": {
+            "template": {
+              "type": "string",
+              "enum": [
+                "VIDEO_FAILED",
+                "VIDEO_COMPLETED",
+                "PASSWORD_RESET",
+                "PASSWORD_CHANGED"
+              ],
+              "description": "Modelo do e-mail."
+            },
+            "recipient_email": {
+              "type": "string",
+              "format": "email",
+              "maxLength": 180,
+              "description": "E-mail do destinatário (partition key no DynamoDB, normalizado em minúsculas)."
+            },
+            "recipient_name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120,
+              "description": "Nome do destinatário."
+            },
+            "video_name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "description": "Nome original do arquivo de vídeo. Obrigatório nos templates de vídeo."
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "description": "Motivo da falha (opcional; usado no modelo VIDEO_FAILED e traduzido para texto legível pela notification)."
+            },
+            "action_url": {
+              "type": "string",
+              "format": "uri",
+              "maxLength": 2048,
+              "description": "Link do botão do e-mail. Obrigatório em PASSWORD_RESET (link de redefinição com o token, válido por 30 min). Nunca registrado em log nem no DynamoDB."
+            }
+          },
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "if": {
+                "type": "object",
+                "properties": {
+                  "template": {
+                    "enum": [
+                      "VIDEO_FAILED",
+                      "VIDEO_COMPLETED"
+                    ]
+                  }
+                },
+                "required": [
+                  "template"
+                ]
+              },
+              "then": {
+                "required": [
+                  "video_name"
+                ],
+                "type": "object",
+                "properties": {
+                  "video_name": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "type": "object",
+                "properties": {
+                  "template": {
+                    "const": "PASSWORD_RESET"
+                  }
+                },
+                "required": [
+                  "template"
+                ]
+              },
+              "then": {
+                "required": [
+                  "action_url"
+                ],
+                "type": "object",
+                "properties": {
+                  "action_url": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "payload": {
+                "type": "object",
+                "properties": {
+                  "template": {
+                    "enum": [
+                      "VIDEO_FAILED",
+                      "VIDEO_COMPLETED"
+                    ]
+                  }
+                },
+                "required": [
+                  "template"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "saga_id": {
+                "type": "string"
+              },
+              "video_id": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "payload": {
+                "type": "object",
+                "properties": {
+                  "template": {
+                    "enum": [
+                      "PASSWORD_RESET",
+                      "PASSWORD_CHANGED"
+                    ]
+                  }
+                },
+                "required": [
+                  "template"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "saga_id": {
+                "type": "null"
+              },
+              "video_id": {
+                "type": "null"
+              }
+            },
+            "type": "object"
+          }
+        }
+      ]
+    }
+  ]
+}

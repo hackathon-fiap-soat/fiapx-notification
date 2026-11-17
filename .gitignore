@@ -160,3 +160,10 @@ vite.config.ts.timestamp-*
 # Turbo Repo
 .turbo
 
+
+# --- fiapx-notification ---
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+build/
