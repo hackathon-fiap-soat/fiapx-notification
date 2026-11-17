@@ -180,7 +180,7 @@ STARTTLS; a 465 usa TLS direto. O remetente aparece como "FIAP X".
   grava credenciais vazias.
 - `destroy.yml`: chamado pelo `destroy-all` (cria um zip vazio, porque a variável `lambda_zip` exige o arquivo).
 - `ci.yml`: lint, testes com cobertura (com `fiapx-docs` e `fiapx-infra` lado a lado e o compose local),
-  build do zip e `terraform fmt -check`/`validate` em todo PR.
+  build do zip e `terraform fmt -check`/`validate` em todo PR. Análise no **SonarCloud** ([organização `hackathon-fiap-soat`](https://sonarcloud.io/organizations/hackathon-fiap-soat/projects)) depois dos testes, com a cobertura e o Quality Gate como check (`sonar-project.properties`, Secret `SONAR_TOKEN`).
 
 ## Links
 
