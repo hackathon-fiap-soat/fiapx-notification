@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hackathon-fiap-soat/fiapx-docs/contracts/envelope.schema.json",
+  "title": "Envelope",
+  "description": "Envelope padrão de todas as mensagens trocadas entre os serviços do FIAP X (§7.2). O conteúdo específico de cada tipo fica em payload, definido no schema da mensagem.",
+  "type": "object",
+  "required": [
+    "message_id",
+    "type",
+    "version",
+    "saga_id",
+    "video_id",
+    "correlation_id",
+    "occurred_at",
+    "payload"
+  ],
+  "properties": {
+    "message_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identificador único da mensagem (UUID v7). Base da idempotência (processed_messages, DynamoDB)."
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "ProcessVideo",
+        "CleanupArtifacts",
+        "ProcessingStarted",
+        "VideoProcessed",
+        "VideoProcessingFailed",
+        "ArtifactsCleaned",
+        "SendNotification",
+        "NotificationSent",
+        "NotificationFailed"
+      ],
+      "description": "Tipo da mensagem."
+    },
+    "version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Versão do contrato. Mudanças incompatíveis geram uma nova versão."
+    },
+    "saga_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uuid",
+      "description": "Identificador da saga de processamento (MessageGroupId na fila saga-replies.fifo). Nulo só em SendNotification fora da saga (templates de senha, emitidos pelo fiapx-auth)."
+    },
+    "video_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uuid",
+      "description": "Identificador do vídeo. Nulo só em SendNotification fora da saga (templates de senha)."
+    },
+    "correlation_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identificador de correlação propagado em logs e eventos do New Relic."
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Instante em que o fato ocorreu ou o comando foi emitido (ISO-8601, UTC)."
+    },
+    "payload": {
+      "type": "object",
+      "description": "Conteúdo específico do tipo da mensagem."
+    }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "not": {
+              "const": "SendNotification"
+            }
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "type": "object",
+        "properties": {
+          "saga_id": {
+            "type": "string"
+          },
+          "video_id": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ]
+}

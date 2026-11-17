@@ -29,7 +29,7 @@ Repositórios na organização [hackathon-fiap-soat](https://github.com/hackatho
 | [`fiapx-auth`](https://github.com/hackathon-fiap-soat/fiapx-auth) | Lambdas de cadastro, login, senha e authorizer JWT | Node.js 24 + Terraform | Etapa 3 ✅ |
 | [`fiapx-video-api`](https://github.com/hackathon-fiap-soat/fiapx-video-api) | API de vídeos, URLs pré-assinadas, orquestrador da SAGA e outbox | PHP 8.4.27 + Laravel 13 no EKS | Etapa 4 ✅ |
 | [`fiapx-video-processor`](https://github.com/hackathon-fiap-soat/fiapx-video-processor) | Worker que extrai os frames com ffmpeg e gera o zip | PHP 8.4.27 + Laravel 13 no EKS + KEDA | Etapa 5 |
-| **fiapx-notification** | E-mails por SMTP (Brevo) com histórico e idempotência no DynamoDB | Node.js 24 + Terraform | Etapa 6 |
+| **fiapx-notification** | E-mails por SMTP (Brevo) com histórico e idempotência no DynamoDB | Node.js 24 + Terraform | Etapa 6 (código pronto, falta o teste na AWS) |
 | [`fiapx-web`](https://github.com/hackathon-fiap-soat/fiapx-web) | Front-end: cadastro, login, senha, upload, status e download | React + Vite + TypeScript + Tailwind | Etapa 6.5 |
 
 ## Onde está a verdade
@@ -50,7 +50,9 @@ Decisão nova ou que contrarie uma existente vira ADR no `fiapx-docs`.
 
 Etapas 0 a 4 concluídas. Etapa 7 (infra AWS) aplicada na AWS Academy: notification (fila e tabela), auth e
 video-api implantados e testados com o smoke do `deploy-all`; ambiente derrubado depois do teste.
-Próxima: Etapa 5 (`fiapx-video-processor`), que termina com o deploy testado na AWS.
+Etapa 6 (este repositório) implementada na branch `feat/etapa-6-notification`: Lambda, testes (cobertura
+100% de linhas) e Terraform; DoD local provado com o pacote do build. Falta o PR, o deploy testado na AWS
+(com os Secrets `SMTP_*` configurados) e o smoke do `deploy-all` com item `SENT`.
 Ordem do plano: 3 auth → 4 video-api → 5 processor → 6 notification → 6.5 web → 7 infra AWS 🛑 → 8 CI/CD →
 9 observabilidade → 10 carga e entregáveis 🛑. O estado atualizado está no painel.
 
@@ -90,23 +92,29 @@ Para um serviço usar o LocalStack: `AWS_ENDPOINT_URL=http://localhost:4566`, `A
 
 ## Este repositório (Etapa 6)
 
-Serviço autônomo, dono da própria fila, Lambda e tabela (spec §8.6, ADR-013, ADR-015):
+Serviço autônomo, dono da própria fila, Lambda e tabela (spec §8.6, ADR-013, ADR-017, ADR-019):
 
-- Consome `SendNotification` da fila `notification-commands` (batch 10, `ReportBatchItemFailures`,
-  DLQ após 3). Valida o payload contra o schema; inválido é registrado como `FAILED` e não é reenviado.
-- Idempotência no DynamoDB `fiapx-<env>-notifications` (PK `email`, SK `message_id`, LSI
-  `email-created_at-index`, TTL `expires_at`): `PutItem` com `attribute_not_exists(message_id) OR
-  #status = :failed`.
-- Templates pt-BR: `VIDEO_FAILED`, `VIDEO_COMPLETED`, `PASSWORD_RESET` (com `action_url`, que nunca vai para
-  log nem DynamoDB) e `PASSWORD_CHANGED`.
-- Responde `NotificationSent`/`NotificationFailed` na `saga-replies.fifo` só quando `saga_id` não é nulo
-  (e-mails de senha ficam fora da SAGA).
-- Envio sempre por SMTP (Nodemailer): Mailpit no ambiente local, provedor externo (padrão Brevo) na AWS, com
-  credenciais no Secrets Manager `fiapx/<env>/notification/smtp` (ADR-019: o SES é negado na AWS Academy).
-- Em produção, o Terraform deste repositório (`infra/`) cria a fila, a DLQ, o alarme e a tabela (já existem)
-  e a Lambda (Etapa 6), e publica `/fiapx/<env>/sqs/notification-commands/url` e `/arn`. `deploy.yml` e
-  `destroy.yml` seguem o ADR-018, com as credenciais do lab nos Secrets. Localmente, o init do `fiapx-infra` já cria esses recursos.
-- Sobe antes do `fiapx-auth` e do `fiapx-video-api` na ordem de deploy.
+- `src/handlers/sqs-handler.js` consome `SendNotification` da `notification-commands` (batch 10,
+  `ReportBatchItemFailures`, DLQ após 3). Valida o payload contra o schema (cópia em `src/contracts/`,
+  conferida pelo contract test; `npm run contracts:sync` atualiza); inválido vira `FAILED` sem reenvio e, com
+  `saga_id`, `NotificationFailed`.
+- Caso de uso `src/application/send-notification.js`: idempotência no DynamoDB `fiapx-<env>-notifications`
+  (PK `email`, SK `message_id`) com `PutItem` condicional `attribute_not_exists(message_id) OR #status =
+  :failed` (mais `PENDING` abandonado há 60 s); já `SENT` → só repete o `NotificationSent`. Falha no SMTP:
+  `FAILED` e volta para a fila; na 3ª tentativa (`ApproximateReceiveCount`), `NotificationFailed` e DLQ.
+- Respostas na `saga-replies.fifo` só quando `saga_id` não é nulo, com `message_id` UUID v7 determinístico
+  (comando + tipo), para a FIFO e o `video-api` deduplicarem.
+- Templates pt-BR em `src/templates/` (HTML + texto): `VIDEO_FAILED`, `VIDEO_COMPLETED`, `PASSWORD_RESET`
+  (`action_url`, nunca em log nem no DynamoDB) e `PASSWORD_CHANGED`.
+- SMTP com Nodemailer (`src/infrastructure/smtp-email-sender.js`): Mailpit no local (`SMTP_HOST=localhost`
+  fora do compose), Brevo na AWS (587, STARTTLS), credenciais no segredo `fiapx/<env>/notification/smtp`.
+- `infra/`: fila, DLQ, alarme e tabela (já existiam), Lambda `fiapx-<env>-notification` (LabRole, VPC),
+  event source mapping, segredo SMTP (variáveis sensíveis `smtp_*` ← GitHub Secrets `SMTP_*`) e os parâmetros
+  `notification/smtp_host`, `/smtp_port`, `/smtp_secret_arn`. Sem chave KMS gerenciada.
+- Testes: `tests/unit`, `tests/contract` (schemas do `../fiapx-docs`) e `tests/integration` (LocalStack +
+  Mailpit, com fila FIFO própria do teste). `npm run dev` consome a fila local como o event source mapping.
+- Sobe antes do `fiapx-auth` e do `fiapx-video-api` na ordem de deploy. Chamado pelo `deploy-all`, recebe os
+  Secrets do `fiapx-infra`: os `SMTP_*` precisam estar lá (ou na organização).
 
 **DoD da Etapa 6:** vídeo inválido no fluxo local gera e-mail no Mailpit, item `SENT` no DynamoDB do
 LocalStack com PK = e-mail, e a saga termina em `NOTIFIED`. Mensagem duplicada não gera segundo e-mail.

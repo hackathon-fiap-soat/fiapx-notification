@@ -25,6 +25,11 @@ só leitura, pode).
   done
   ```
 
+- Este repositório também precisa dos Secrets `SMTP_USER`, `SMTP_PASSWORD` e `SMTP_FROM` (Brevo). Chamado pelo
+  `deploy-all` (`secrets: inherit`), o `deploy.yml` lê os Secrets do `fiapx-infra`: configure-os lá também (ou na
+  organização). Sem eles o deploy segue com aviso e os e-mails falham (`last_error` no DynamoDB).
+- Conferir a Lambda: `aws logs tail /aws/lambda/fiapx-prod-notification --since 10m` (uma linha JSON por
+  mensagem, com `result`) e o item no DynamoDB `fiapx-prod-notifications` (PK = e-mail).
 - Para inspecionar a conta daqui, guarde as chaves num arquivo `chmod 600` **fora dos repositórios**
   (diretório temporário da sessão), exporte e apague ao terminar. Nunca commite.
 

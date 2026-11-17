@@ -1,0 +1,36 @@
+{
+  "name": "fiapx-notification",
+  "version": "0.1.0",
+  "private": true,
+  "description": "FIAP X: Lambda de notificação por e-mail (SQS → SMTP), com histórico e idempotência no DynamoDB",
+  "license": "MIT",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "test": "jest",
+    "test:unit": "jest tests/unit tests/contract",
+    "test:integration": "INTEGRATION=1 jest --runInBand tests/integration",
+    "test:coverage": "INTEGRATION=1 jest --runInBand --coverage",
+    "contracts:sync": "bash scripts/sync-contracts.sh",
+    "dev": "node scripts/dev-consumer.js",
+    "build": "bash scripts/build.sh"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "3.1169.0",
+    "@aws-sdk/client-secrets-manager": "3.1169.0",
+    "@aws-sdk/client-sqs": "3.1169.0",
+    "@aws-sdk/client-ssm": "3.1169.0",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "nodemailer": "10.6.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.15.0",
+    "globals": "17.14.0",
+    "jest": "30.5.2"
+  }
+}

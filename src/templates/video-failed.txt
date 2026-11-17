@@ -1,0 +1,10 @@
+Olá, {{nome}}.
+
+Não conseguimos processar o vídeo "{{video_name}}".
+
+Motivo: {{motivo}}.
+
+Você pode enviar o vídeo de novo pelo FIAP X: {{link}}
+
+--
+Este é um e-mail automático do FIAP X. Não responda a esta mensagem.

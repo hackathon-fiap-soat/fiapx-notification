@@ -1,0 +1,7 @@
+Olá, {{nome}}.
+
+O vídeo "{{video_name}}" foi processado com sucesso. O arquivo .zip com as imagens já está disponível para download em:
+{{link}}
+
+--
+Este é um e-mail automático do FIAP X. Não responda a esta mensagem.

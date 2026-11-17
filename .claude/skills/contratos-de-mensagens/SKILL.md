@@ -14,6 +14,7 @@ própria.
 - **Consome** `SendNotification` (`notification-commands`): templates `VIDEO_FAILED`, `VIDEO_COMPLETED`, `PASSWORD_RESET`, `PASSWORD_CHANGED`.
 - **Produz** `NotificationSent` e `NotificationFailed` na `saga-replies.fifo`, só quando `saga_id` não é nulo.
 - Idempotência no DynamoDB (PK `email`, SK `message_id`); payload inválido vira `FAILED` sem reenvio.
+- O `message_id` das respostas é um UUID v7 determinístico (comando + tipo): repetir a resposta gera o mesmo id.
 
 ## Regras
 
@@ -31,8 +32,11 @@ própria.
 
 - Validar as mensagens produzidas contra o schema e consumir os exemplos de `contracts/examples/` nos
   testes.
-- A forma de obter os schemas no CI (cópia sincronizada ou checkout do `fiapx-docs`) é decidida na primeira
-  etapa de código e documentada no README.
+- Testes e CI leem os schemas de `../fiapx-docs/contracts` (ou `CONTRACTS_DIR`); o CI faz checkout do
+  `fiapx-docs` ao lado. Em tempo de execução, a Lambda usa a cópia em `src/contracts/`
+  (`envelope.schema.json` e `send-notification.v1.schema.json`); o contract test falha se ela divergir.
+  Mudou o schema no `fiapx-docs`? `npm run contracts:sync` e commite a cópia.
+- O consumidor ignora erros `additionalProperties` (tolerância); o produtor valida estrito nos testes.
 - Mudança incompatível: nova `version`. O consumidor passa a aceitar as duas versões antes de o produtor mudar
   (`fiapx-docs/06-deploy/fluxo-de-deploy.md`, "Mudanças de contrato").
 

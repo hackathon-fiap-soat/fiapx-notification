@@ -1,6 +1,6 @@
 # Recursos que pertencem a este repositório (spec §8.6): a fila notification-commands com DLQ e alarme, e a
-# tabela de histórico. A Lambda que consome a fila chega na Etapa 6; até lá, os comandos esperam na fila
-# (retenção de 4 dias). Os outros repositórios encontram tudo pelo SSM (ADR-001).
+# tabela de histórico. A Lambda que consome a fila está em lambda.tf e o segredo SMTP em smtp.tf. Os outros
+# repositórios encontram tudo pelo SSM (ADR-001).
 locals {
   prefix = "fiapx-${var.env}"
   ssm    = "/fiapx/${var.env}"
