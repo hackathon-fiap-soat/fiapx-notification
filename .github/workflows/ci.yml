@@ -1,0 +1,22 @@
+name: ci
+
+# Checks de PR. Por enquanto só o Terraform (fila, DLQ e tabela); o código da Lambda chega na Etapa 6.
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run: { working-directory: infra }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with: { terraform_version: 1.15.8 }
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false -input=false
+      - run: terraform validate

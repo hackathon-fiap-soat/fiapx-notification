@@ -90,9 +90,11 @@ Serviço autônomo, dono da própria fila, Lambda e tabela (spec §8.6, ADR-013,
   log nem DynamoDB) e `PASSWORD_CHANGED`.
 - Responde `NotificationSent`/`NotificationFailed` na `saga-replies.fifo` só quando `saga_id` não é nulo
   (e-mails de senha ficam fora da SAGA).
-- `EMAIL_DRIVER=smtp` envia ao Mailpit no ambiente local; `EMAIL_DRIVER=ses` na AWS.
-- Em produção, o Terraform deste repositório cria a fila, a DLQ, a Lambda e a tabela, e publica
-  `/fiapx/<env>/sqs/notification-commands/url`. Localmente, o init do `fiapx-infra` já cria esses recursos.
+- Envio sempre por SMTP (Nodemailer): Mailpit no ambiente local, provedor externo (padrão Brevo) na AWS, com
+  credenciais no Secrets Manager `fiapx-<env>/notification/smtp` (ADR-019: o SES é negado na AWS Academy).
+- Em produção, o Terraform deste repositório (`infra/`) cria a fila, a DLQ, o alarme e a tabela (já existem)
+  e a Lambda (Etapa 6), e publica `/fiapx/<env>/sqs/notification-commands/url` e `/arn`. `deploy.yml` e
+  `destroy.yml` seguem o ADR-018, com as credenciais do lab nos Secrets. Localmente, o init do `fiapx-infra` já cria esses recursos.
 - Sobe antes do `fiapx-auth` e do `fiapx-video-api` na ordem de deploy.
 
 **DoD da Etapa 6:** vídeo inválido no fluxo local gera e-mail no Mailpit, item `SENT` no DynamoDB do
